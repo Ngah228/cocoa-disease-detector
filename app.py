@@ -19,20 +19,24 @@ MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_PATH):
-        # Explicitly initialize custom weights
         return YOLO(MODEL_PATH)
     return None
 
 with st.spinner("Initializing neural network brains..."):
     model = load_model()
 
-# 3. Sidebar Project Meta-Information
+# 3. Sidebar Project Meta-Information & Live Threshold Controller
 st.sidebar.header("📋 Project Specifications")
 st.sidebar.markdown("**Author:** NGAH")
 st.sidebar.markdown("**Model Architecture:** YOLOv8n")
 st.sidebar.markdown("**Dataset Scale:** 3,870 Images")
 st.sidebar.markdown("**Hardware Platform:** Cloud Production Mirror")
 st.sidebar.markdown("**Target Classes:** Healthy, CSSVD, Anthracnose")
+
+st.sidebar.divider()
+st.sidebar.subheader("⚙️ Model Sensitivity")
+# Allows you to dynamically lower/raise confidence in front of the jury
+conf_threshold = st.sidebar.slider("Confidence Cutoff Threshold", min_value=0.01, max_value=1.00, value=0.05, step=0.01)
 
 # 4. Drag and Drop User Interface
 uploaded_file = st.file_uploader("Upload a clear image of a cocoa leaf (.jpg, .jpeg, .png)", type=["jpg", "jpeg", "png"])
@@ -55,8 +59,8 @@ if uploaded_file is not None:
                 temp_path = os.path.join(BASE_DIR, "temp_leaf_upload.jpg")
                 image.save(temp_path)
                 
-                # Run inference directly using your custom model parameters
-                results = model.predict(source=temp_path, imgsz=256, conf=0.25, iou=0.4)
+                # Run inference using the slider value
+                results = model.predict(source=temp_path, imgsz=256, conf=conf_threshold, iou=0.4)
                 
                 # Render predicted bounding boxes cleanly
                 res_plotted = results[0].plot()
@@ -64,19 +68,17 @@ if uploaded_file is not None:
                 
                 st.image(predicted_image, use_container_width=True)
                 
-                # Extract detected classes safely based on your 3 custom training classes
+                # Extract detected classes safely based on your custom classes
                 if len(results[0].boxes) == 0:
-                    st.warning("No anomalies identified with high confidence.")
+                    st.warning("No anomalies identified at this confidence level. Try lowering the threshold slider in the sidebar.")
                 else:
                     st.success(f"Detected {len(results[0].boxes)} diagnostic marker(s)!")
                     
-                    # Display names of detected classes
                     detected_classes = []
                     for box in results[0].boxes:
                         class_id = int(box.cls[0])
-                        # Safeguard lookup mapping for custom classes only
                         class_mapping = {0: 'Healthy', 1: 'CSSVD', 2: 'Anthracnose'}
-                        label = class_mapping.get(class_id, f"Unknown Anomaly (Class {class_id})")
+                        label = class_mapping.get(class_id, f"Anomaly (Class {class_id})")
                         detected_classes.append(label)
                     
                     st.info(f"Analysis Verdict: {', '.join(set(detected_classes))}")
