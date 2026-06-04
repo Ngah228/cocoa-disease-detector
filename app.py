@@ -12,17 +12,15 @@ st.markdown('<div style="font-size:18px; text-align: center; margin-bottom: 30px
 
 st.divider()
 
-# 2. Absolute Path Routing
+# 2. Secure File Routing
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_PATH):
-        model_instance = YOLO(MODEL_PATH)
-        # FORCE CUSTOM AGRI-CLASSES: Overrides any cloud version fallback overrides
-        model_instance.model.names = {0: 'Healthy', 1: 'CSSVD', 2: 'Anthracnose'}
-        return model_instance
+        # Explicitly initialize custom weights
+        return YOLO(MODEL_PATH)
     return None
 
 with st.spinner("Initializing neural network brains..."):
@@ -57,22 +55,31 @@ if uploaded_file is not None:
                 temp_path = os.path.join(BASE_DIR, "temp_leaf_upload.jpg")
                 image.save(temp_path)
                 
-                # Run inference with open threshold
-                results = model.predict(source=temp_path, imgsz=256, conf=0.05, iou=0.4)
+                # Run inference directly using your custom model parameters
+                results = model.predict(source=temp_path, imgsz=256, conf=0.25, iou=0.4)
                 
-                # Re-apply strict custom naming directly to the active bounding boxes
-                if len(results[0].boxes) > 0:
-                    results[0].names = {0: 'Healthy', 1: 'CSSVD', 2: 'Anthracnose'}
-                
+                # Render predicted bounding boxes cleanly
                 res_plotted = results[0].plot()
                 predicted_image = Image.fromarray(res_plotted[:, :, ::-1])
                 
                 st.image(predicted_image, use_container_width=True)
                 
+                # Extract detected classes safely based on your 3 custom training classes
                 if len(results[0].boxes) == 0:
                     st.warning("No anomalies identified with high confidence.")
                 else:
                     st.success(f"Detected {len(results[0].boxes)} diagnostic marker(s)!")
+                    
+                    # Display names of detected classes
+                    detected_classes = []
+                    for box in results[0].boxes:
+                        class_id = int(box.cls[0])
+                        # Safeguard lookup mapping for custom classes only
+                        class_mapping = {0: 'Healthy', 1: 'CSSVD', 2: 'Anthracnose'}
+                        label = class_mapping.get(class_id, f"Unknown Anomaly (Class {class_id})")
+                        detected_classes.append(label)
+                    
+                    st.info(f"Analysis Verdict: {', '.join(set(detected_classes))}")
                 
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
