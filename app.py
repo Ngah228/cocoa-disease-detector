@@ -2,6 +2,7 @@ import streamlit as st
 from ultralytics import YOLO
 from PIL import Image
 import os
+from pathlib import Path
 
 # 1. Page Configuration & Styling
 st.set_page_config(page_title="Cocoa Disease Detector", page_icon="🌱", layout="centered")
@@ -18,12 +19,13 @@ st.markdown('<div class="subtitle">Powered by YOLOv8 — Deep Learning Academic 
 
 st.divider()
 
-# 2. Dynamic Path to your freshly trained weights (Relative path for GitHub Cloud)
-MODEL_PATH = "best.pt"
+# 2. BULLETPROOF ROUTING: Automatically find best.pt relative to this script's folder
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 
 @st.cache_resource
 def load_model():
-    """Loads the model once and caches it to protect laptop RAM."""
+    """Loads the custom model safely using an absolute path verification rule."""
     if os.path.exists(MODEL_PATH):
         return YOLO(MODEL_PATH)
     return None
@@ -56,12 +58,15 @@ if uploaded_file is not None:
         
     with col2:
         st.subheader("⚡ AI Diagnostic")
+        
+        # Absolute safety verification check
         if model is None:
-            st.error("Error: Trained model file 'best.pt' not found. Please verify your file path.")
+            st.error(f"Error: Custom weights file not found at path: {MODEL_PATH}")
+            st.info("Please verify that 'best.pt' is uploaded in the main repository directory on GitHub.")
         else:
             with st.spinner("Scanning leaf pixels..."):
                 # Save temp file for YOLO disk pipeline compatibility
-                temp_path = "temp_leaf_upload.jpg"
+                temp_path = os.path.join(BASE_DIR, "temp_leaf_upload.jpg")
                 image.save(temp_path)
                 
                 # Inference execution using matching training image size and synchronized confidence thresholds
