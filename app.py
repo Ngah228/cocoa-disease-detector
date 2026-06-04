@@ -65,7 +65,7 @@ if uploaded_file is not None:
                 image.save(temp_path)
                 
                 # Inference execution using matching training image size and synchronized confidence thresholds
-                results = model.predict(source=temp_path, imgsz=256, conf=0.15, iou=0.4)
+                results = model.predict(source=temp_path, imgsz=256, conf=0.25, iou=0.4)
                 
                 # Render predicted bounding boxes
                 res_plotted = results[0].plot()
