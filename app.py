@@ -12,25 +12,28 @@ st.markdown('<div style="font-size:18px; text-align: center; margin-bottom: 30px
 
 st.divider()
 
-# 2. File Routing
+# 2. Absolute Path Routing
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_PATH):
-        return YOLO(MODEL_PATH)
+        model_instance = YOLO(MODEL_PATH)
+        # FORCE CUSTOM AGRI-CLASSES: Overrides any cloud version fallback overrides
+        model_instance.model.names = {0: 'Healthy', 1: 'CSSVD', 2: 'Anthracnose'}
+        return model_instance
     return None
 
 with st.spinner("Initializing neural network brains..."):
     model = load_model()
 
-# 3. Sidebar Project Meta-Information (Cleaned layout parsing)
+# 3. Sidebar Project Meta-Information
 st.sidebar.header("📋 Project Specifications")
 st.sidebar.markdown("**Author:** NGAH")
 st.sidebar.markdown("**Model Architecture:** YOLOv8n")
 st.sidebar.markdown("**Dataset Scale:** 3,870 Images")
-st.sidebar.markdown("**Training Hardware:** Local CPU Intel Pentium")
+st.sidebar.markdown("**Hardware Platform:** Cloud Production Mirror")
 st.sidebar.markdown("**Target Classes:** Healthy, CSSVD, Anthracnose")
 
 # 4. Drag and Drop User Interface
@@ -54,7 +57,12 @@ if uploaded_file is not None:
                 temp_path = os.path.join(BASE_DIR, "temp_leaf_upload.jpg")
                 image.save(temp_path)
                 
+                # Run inference with open threshold
                 results = model.predict(source=temp_path, imgsz=256, conf=0.05, iou=0.4)
+                
+                # Re-apply strict custom naming directly to the active bounding boxes
+                if len(results[0].boxes) > 0:
+                    results[0].names = {0: 'Healthy', 1: 'CSSVD', 2: 'Anthracnose'}
                 
                 res_plotted = results[0].plot()
                 predicted_image = Image.fromarray(res_plotted[:, :, ::-1])
@@ -70,4 +78,4 @@ if uploaded_file is not None:
                     os.remove(temp_path)
 
 st.divider()
-st.caption("Developed for Academic Thesis Evaluation — Running on Cloud Production Mirror.")
+st.caption("Developed for Academic Thesis Evaluation — Secure Cloud Deployment.")
